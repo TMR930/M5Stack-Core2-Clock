@@ -15,11 +15,11 @@ const char* ntp_server = "ntp.jst.mfeed.ad.jp";
 const long gmt_offset_sec = 9 * 3600;
 const int daylight_offset_sec = 0;
 
-const int alarm_start_hour = 8;
-const int alarm_end_hour = 21;
+const int ALARM_START_HOUR = 8;
+const int ALARM_END_HOUR = 21;
 
 int beep_volume = 3;
-int text_color = TFT_PURPLE;
+const int TEXT_COLOR = TFT_PURPLE;
 
 float temp = 0.00;
 int humd = 0;
@@ -27,8 +27,11 @@ float pressure = 0.00;
 
 int old_ss = 00;
 
-const int display_w = 320;
-const int display_h = 240;
+const int DISPLAY_W = 320;
+const int DISPLAY_H = 240;
+
+const int TIME_POS_Y = 40;
+const int ENV_POS_Y = 130;
 
 // Forward declaration needed for IDE 1.6.x
 static uint8_t conv2d(const char* p);
@@ -49,18 +52,17 @@ void drawColon(int sec) {
   if (sec % 2) {  // Flash the colons on/off
     M5.Lcd.setTextColor(0x0001, TFT_BLACK);
     M5.Lcd.print(":");
-    M5.Lcd.setTextColor(text_color, TFT_BLACK);
+    M5.Lcd.setTextColor(TEXT_COLOR, TFT_BLACK);
   } else {
     M5.Lcd.print(":");
   }
 }
 
 void drawTime(int hh, int mm, int ss) {
-  M5.Lcd.setTextColor(text_color, TFT_BLACK);
-  // M5.Lcd.setTextDatum(TC_DATUM);
+  M5.Lcd.setTextColor(TEXT_COLOR, TFT_BLACK);
   M5.Lcd.setTextFont(7);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setCursor(52, 140);
+  M5.Lcd.setCursor(52, TIME_POS_Y);
   drawTimeTextSet(hh);  // Draw hours
   drawColon(ss);
   drawTimeTextSet(mm);  // Draw minutes
@@ -73,8 +75,7 @@ void btnAdisplayText(String text) {
   M5.Lcd.setTextDatum(TC_DATUM);
   M5.Lcd.setTextFont(1);
   M5.Lcd.setTextSize(2);
-  // M5.Lcd.drawString(text, 68, 220);
-  M5.Lcd.drawString(text, ((display_w / 3) - 50), (display_h - 20));
+  M5.Lcd.drawString(text, ((DISPLAY_W / 3) - 50), (DISPLAY_H - 20));
 }
 
 void envDisplay() {
@@ -85,21 +86,33 @@ void envDisplay() {
   } else {
     temp = 0, humd = 0;
   }
-  M5.Lcd.setTextColor(text_color, TFT_BLACK);
+  M5.Lcd.setTextColor(TEXT_COLOR, TFT_BLACK);
   M5.Lcd.setTextDatum(TC_DATUM);
   M5.Lcd.setTextFont(7);
   M5.Lcd.setTextSize(1);
 
-  M5.Lcd.drawFloat(temp, 1, (display_w / 4), 50);
-  M5.Lcd.drawString(String(humd), ((display_w / 4) * 3), 50);
+  M5.Lcd.drawFloat(temp, 1, (DISPLAY_W / 4), ENV_POS_Y);
+  M5.Lcd.drawString(String(humd), ((DISPLAY_W / 4) * 3), ENV_POS_Y);
 }
 
 void drawEnvTextSetup() {
   M5.Lcd.setTextDatum(TC_DATUM);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setFreeFont(&unicode_24px);
-  M5.Lcd.drawString("℃", ((display_w / 4) + 70), 80, 1);
-  M5.Lcd.drawString("％", (((display_w / 4) * 3) + 50), 80, 1);
+  M5.Lcd.drawString("℃", ((DISPLAY_W / 4) + 70), (ENV_POS_Y + 30), 1);
+  M5.Lcd.drawString("％", (((DISPLAY_W / 4) * 3) + 50), (ENV_POS_Y + 30), 1);
+}
+
+void drawSecondHandBar(int ss) {
+  if (ss == 00) {
+    M5.Lcd.fillRect(0, (DISPLAY_H - 10), DISPLAY_W, 10, TFT_BLACK);
+  }
+  M5.Lcd.fillRect(0, (DISPLAY_H - 10), (ss * 5.3), 10, TEXT_COLOR);
+  M5.Lcd.drawRect(0, (DISPLAY_H - 10), DISPLAY_W, 10, TEXT_COLOR);
+
+  for (int i = 1; i < 6; i++) {
+    M5.Lcd.drawFastVLine((DISPLAY_W / 6 * i), (DISPLAY_H - 10), 10, TEXT_COLOR);
+  }
 }
 
 void setup(void) {
@@ -108,7 +121,7 @@ void setup(void) {
   qmp6988.init();
 
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setTextColor(text_color, TFT_BLACK);
+  M5.Lcd.setTextColor(TEXT_COLOR, TFT_BLACK);
 
   // connect to WiFi
   M5.Lcd.printf("Connecting to %s \n", ssid);
@@ -118,6 +131,7 @@ void setup(void) {
     M5.Lcd.print(".");
   }
   M5.Lcd.println("CONNECTED!");
+  M5.Spk.PlaySound(previewR, sizeof(previewR));
 
   // init and get the time
   configTime(gmt_offset_sec, daylight_offset_sec, ntp_server);
@@ -148,8 +162,11 @@ void loop() {
 
   // Show on display
   drawTime(hh, mm, ss);
+  // second hand bar
+  drawSecondHandBar(ss);
+
   // btnAdisplayText("Vol:" + String(beep_volume));
-  btnAdisplayText("beep");
+  // btnAdisplayText("beep");
   // Set alarm volume
   // if (M5.BtnA.isPressed()) {
   //   ++beep_volume;
@@ -157,8 +174,9 @@ void loop() {
   //   // btnAdisplayText("Vol:" + String(beep_volume));
   //   beep();
   // }
+
   if (M5.BtnA.isPressed()) {
-    M5.Axp.SetLDOEnable(3, true);  // Open the vibration.   开启震动马达
+    M5.Axp.SetLDOEnable(3, true);  // Open the vibration.
     delay(100);
     M5.Axp.SetLDOEnable(3, false);
     delay(100);
@@ -166,7 +184,7 @@ void loop() {
   }
 
   // Set time signal
-  if (hh >= alarm_start_hour && hh <= alarm_end_hour) {
+  if (hh >= ALARM_START_HOUR && hh <= ALARM_END_HOUR) {
     if ((mm == 00 && ss == 00)) {
       M5.Spk.PlaySound(previewR, sizeof(previewR));
     }
