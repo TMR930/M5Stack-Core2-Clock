@@ -2,7 +2,7 @@
 
 Displays the time obtained from the NTP server on the M5Stack-Core2.
 
-<!-- <img src="./image/image.png"/> -->
+<img src="./image/image.png"/>
 
 ## Usage
 
