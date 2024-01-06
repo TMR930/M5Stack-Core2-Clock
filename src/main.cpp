@@ -22,7 +22,7 @@ int beep_volume = 3;
 const int TEXT_COLOR = TFT_PURPLE;
 
 float temp = 0.00;
-int humd = 0;
+int humid = 0;
 float pressure = 0.00;
 
 int old_ss = 00;
@@ -30,8 +30,12 @@ int old_ss = 00;
 const int DISPLAY_W = 320;
 const int DISPLAY_H = 240;
 
-const int TIME_POS_Y = 40;
-const int ENV_POS_Y = 130;
+const int TIME_POS_Y = 5;
+const int ENV_POS_Y = 60;
+
+const int GRAPH_W = 280;
+const int GRAPH_H = 100;
+const int GRAPH_OFFSET_Y = 120;
 
 // Forward declaration needed for IDE 1.6.x
 static uint8_t conv2d(const char* p);
@@ -42,6 +46,8 @@ uint8_t hh = conv2d(__TIME__), mm = conv2d(__TIME__ + 3),
 
 SHT3X sht30;
 QMP6988 qmp6988;
+
+TFT_eSprite graph = TFT_eSprite(&M5.Lcd);
 
 void drawTimeTextSet(int time) {
   if (time < 10) M5.Lcd.print('0');
@@ -74,9 +80,9 @@ void envDisplay() {
   pressure = qmp6988.calcPressure();
   if (sht30.get() == 0) {
     temp = sht30.cTemp;
-    humd = sht30.humidity;
+    humid = sht30.humidity;
   } else {
-    temp = 0, humd = 0;
+    temp = 0, humid = 0;
   }
   M5.Lcd.setTextColor(TEXT_COLOR, TFT_BLACK);
   M5.Lcd.setTextDatum(TC_DATUM);
@@ -84,7 +90,48 @@ void envDisplay() {
   M5.Lcd.setTextSize(1);
 
   M5.Lcd.drawFloat(temp, 1, (DISPLAY_W / 4), ENV_POS_Y);
-  M5.Lcd.drawString(String(humd), ((DISPLAY_W / 4) * 3), ENV_POS_Y);
+  M5.Lcd.drawString(String(humid), ((DISPLAY_W / 4) * 3), ENV_POS_Y);
+
+  // Placing Sprites for Graphs
+  graph.pushSprite(((DISPLAY_W - GRAPH_W) / 2 - 1), (15 + GRAPH_OFFSET_Y));
+  graph.scroll(-1, 0);
+
+  // Draw a tick line
+  for (int y = 0; y <= GRAPH_H; y += GRAPH_H / 10)
+    graph.drawPixel((GRAPH_W - 1), (y), TFT_DARKGREEN);
+  M5.Lcd.setTextFont(0);
+  M5.Lcd.setTextSize(1);
+
+  // Scale for temperature
+  M5.Lcd.setTextColor(TFT_YELLOW);
+  M5.Lcd.setCursor(0, GRAPH_OFFSET_Y);
+  M5.Lcd.printf("Temp");
+  char tempScale[6][4] = {" 40", " 30", " 20", " 10", "  0", "-10"};
+  for (int i = 0; i < 6; i++) {
+    M5.Lcd.setCursor(0, 12 + i * GRAPH_H / 10 * 2 + GRAPH_OFFSET_Y);
+    M5.Lcd.printf("%s", tempScale[i]);
+  }
+
+  // Scale for humidity
+  M5.Lcd.setTextColor(TFT_BLUE);
+  M5.Lcd.setCursor(DISPLAY_W - 30, GRAPH_OFFSET_Y);
+  M5.Lcd.printf("Humid");
+  char humidScale[6][4] = {"100", "80", "60", "40", "20", "0"};
+  for (int i = 0; i < 6; i++) {
+    M5.Lcd.setCursor(GRAPH_W + (DISPLAY_W - GRAPH_W) / 2 + 1,
+                     12 + i * GRAPH_H / 10 * 2 + GRAPH_OFFSET_Y);
+    M5.Lcd.printf("%s", humidScale[i]);
+  }
+
+  // Draw a temperature graph
+  if (temp > 40.0) temp = 40.0;
+  if (temp < -10.0) temp = -10.0;
+  float tc = -2.0 * (temp - 40.0);
+  graph.drawFastVLine(GRAPH_W - 1, (int)tc, 2, TFT_YELLOW);
+
+  // Draw a humidity graph
+  float hc = -1.0 * (humid - 100.0);
+  graph.drawFastVLine(GRAPH_W - 1, (int)hc, 2, TFT_BLUE);
 }
 
 void drawEnvTextSetup() {
@@ -138,6 +185,11 @@ void setup(void) {
   M5.Lcd.clearDisplay();
 
   drawEnvTextSetup();
+
+  // Generating Sprites for Graphs
+  graph.setColorDepth(8);
+  graph.createSprite(GRAPH_W, GRAPH_H + 1);
+  graph.fillSprite(TFT_BLACK);
 }
 
 void loop() {
@@ -155,7 +207,7 @@ void loop() {
   // Show on display
   drawTime(hh, mm, ss);
   // second hand bar
-  drawSecondHandBar(ss);
+  // drawSecondHandBar(ss);
 
   if (M5.BtnA.isPressed()) {
     M5.Axp.SetLDOEnable(3, true);  // Open the vibration.
