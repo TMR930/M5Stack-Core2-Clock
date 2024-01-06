@@ -70,14 +70,6 @@ void drawTime(int hh, int mm, int ss) {
   drawTimeTextSet(ss);  // Draw seconds
 }
 
-void btnAdisplayText(String text) {
-  M5.Lcd.setTextColor(WHITE, BLACK);
-  M5.Lcd.setTextDatum(TC_DATUM);
-  M5.Lcd.setTextFont(1);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.drawString(text, ((DISPLAY_W / 3) - 50), (DISPLAY_H - 20));
-}
-
 void envDisplay() {
   pressure = qmp6988.calcPressure();
   if (sht30.get() == 0) {
@@ -164,16 +156,6 @@ void loop() {
   drawTime(hh, mm, ss);
   // second hand bar
   drawSecondHandBar(ss);
-
-  // btnAdisplayText("Vol:" + String(beep_volume));
-  // btnAdisplayText("beep");
-  // Set alarm volume
-  // if (M5.BtnA.isPressed()) {
-  //   ++beep_volume;
-  //   if (beep_volume > 6) beep_volume = 0;
-  //   // btnAdisplayText("Vol:" + String(beep_volume));
-  //   beep();
-  // }
 
   if (M5.BtnA.isPressed()) {
     M5.Axp.SetLDOEnable(3, true);  // Open the vibration.
